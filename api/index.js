@@ -1,74 +1,89 @@
 const express = require('express');
-const sqlite3 = require('sqlite3').verbose();
+const { Pool } = require('pg');
 const app = express();
 
 app.use(express.json()); // Middleware to parse JSON
 
-// Set up SQLite database
-const db = new sqlite3.Database('./payments.db');
-
-// Create the payments table
-db.serialize(() => {
-    db.run(`CREATE TABLE IF NOT EXISTS payments (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        MerchantRequestID TEXT,
-        CheckoutRequestID TEXT,
-        ResultCode REAL,
-        ResultDesc TEXT,
-        amount REAL,
-        MpesaReceiptNumber TEXT,
-        TransactionDate TEXT,
-        PhoneNumber TEXT,
-        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
-    )`);
+// Set up PostgreSQL database
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
 });
 
-// Callback URL endpoint
-app.post('/daraja-callback', (req, res) => {
-   // Extracting the necessary data from the callback JSON
-   const callbackData = req.body; // Ensure you reference the request body
-   const stkCallback = callbackData.Body.stkCallback;
-   const resultCode = stkCallback.ResultCode;
-   const resultDesc = stkCallback.ResultDesc;
-   const merchantRequestID = stkCallback.MerchantRequestID;
-   const checkoutRequestID = stkCallback.CheckoutRequestID;
+// Create the payments table if it doesn't exist
+const createTable = async () => {
+    const createTableQuery = `
+        CREATE TABLE IF NOT EXISTS payments (
+            id SERIAL PRIMARY KEY,
+            MerchantRequestID TEXT,
+            CheckoutRequestID TEXT,
+            ResultCode INTEGER,
+            ResultDesc TEXT,
+            amount REAL,
+            MpesaReceiptNumber TEXT,
+            TransactionDate TEXT,
+            PhoneNumber TEXT,
+            timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        );
+    `;
+    try {
+        await pool.query(createTableQuery);
+        console.log('Payments table created or already exists.');
+    } catch (err) {
+        console.error('Error creating table:', err.message);
+    }
+};
 
-   // Extracting CallbackMetadata items
-   const callbackItems = stkCallback.CallbackMetadata.Item;
-   const amount = callbackItems.find(item => item.Name === 'Amount').Value;
-   const mpesaReceiptNumber = callbackItems.find(item => item.Name === 'MpesaReceiptNumber').Value;
-   const transactionDate = callbackItems.find(item => item.Name === 'TransactionDate').Value;
-   const phoneNumber = callbackItems.find(item => item.Name === 'PhoneNumber').Value;
+createTable();
+
+// Callback URL endpoint
+app.post('/daraja-callback', async (req, res) => {
+    // Extracting the necessary data from the callback JSON
+    const callbackData = req.body; // Ensure you reference the request body
+    const stkCallback = callbackData.Body.stkCallback;
+    const resultCode = stkCallback.ResultCode;
+    const resultDesc = stkCallback.ResultDesc;
+    const merchantRequestID = stkCallback.MerchantRequestID;
+    const checkoutRequestID = stkCallback.CheckoutRequestID;
+
+    // Extracting CallbackMetadata items
+    const callbackItems = stkCallback.CallbackMetadata.Item;
+    const amount = callbackItems.find(item => item.Name === 'Amount').Value;
+    const mpesaReceiptNumber = callbackItems.find(item => item.Name === 'MpesaReceiptNumber').Value;
+    const transactionDate = callbackItems.find(item => item.Name === 'TransactionDate').Value;
+    const phoneNumber = callbackItems.find(item => item.Name === 'PhoneNumber').Value;
 
     // Insert into database
-    db.run(
-        `INSERT INTO payments (
+    const insertQuery = `
+        INSERT INTO payments (
             MerchantRequestID, ResultCode, CheckoutRequestID, ResultDesc, amount, MpesaReceiptNumber, TransactionDate, PhoneNumber
-        ) VALUES (?, ?, ?, ?, ?, ?, ?)`,
-        [merchantRequestID, resultCode, checkoutRequestID, resultDesc, amount, mpesaReceiptNumber, transactionDate, phoneNumber],
-        function(err) {
-            if (err) {
-                console.error(err.message);
-                return res.status(500).json({ message: 'Database error' });
-            }
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    `;
+    const values = [merchantRequestID, resultCode, checkoutRequestID, resultDesc, amount, mpesaReceiptNumber, transactionDate, phoneNumber];
 
-            res.status(200).json({ message: 'Callback received and processed' });
-        }
-    );
+    try {
+        await pool.query(insertQuery, values);
+        res.status(200).json({ message: 'Callback received and processed' });
+    } catch (err) {
+        console.error('Database error:', err.message);
+        res.status(500).json({ message: 'Database error' });
+    }
 });
 
 // Endpoint to expose payments data
-app.get('/', (req, res) => {
-    db.all('SELECT * FROM payments', [], (err, rows) => {
-        if (err) {
-            return res.status(500).json({ message: 'Database error' });
-        }
+app.get('/', async (req, res) => {
+    const selectQuery = 'SELECT * FROM payments';
+
+    try {
+        const { rows } = await pool.query(selectQuery);
         res.status(200).json(rows);
-    });
+    } catch (err) {
+        console.error('Database error:', err.message);
+        res.status(500).json({ message: 'Database error' });
+    }
 });
 
 // Start the server
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);
 });
