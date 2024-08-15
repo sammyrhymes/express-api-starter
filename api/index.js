@@ -6,7 +6,7 @@ let latestCallbackData = {};  // Variable to store the latest callback data
 app.use(express.json());  // Middleware to parse JSON
 
 // Callback URL endpoint
-app.all('/daraja-callback', (req, res) => {
+app.all('/', (req, res) => {
     const callbackData = req.body;  // Get the callback data
 
     // Store the latest callback data
