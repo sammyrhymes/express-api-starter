@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
 <<<<<<< HEAD
+<<<<<<< HEAD
     "run": "node api/index.js",
     "dev": "nodemon api/index.js"
 =======
@@ -14,6 +15,10 @@
     "test": "jest",
     "vercel-build":"echo hi"
 >>>>>>> parent of 60dfc74 (cleanup)
+=======
+    "run":"node api/index.js",
+    "dev":"nodemon api/index.js"
+>>>>>>> parent of 17425b9 (added db operations)
   },
   "keywords": [],
   "author": "CJ R. <cj@null.computer> (https://w3cj.now.sh)",
@@ -23,6 +28,7 @@
   },
   "license": "MIT",
   "dependencies": {
+<<<<<<< HEAD
 <<<<<<< HEAD
     "express": "^4.19.2",
     "pg": "^8.12.0",
@@ -34,6 +40,9 @@
     "helmet": "^7.1.0",
     "morgan": "^1.10.0"
 >>>>>>> parent of 60dfc74 (cleanup)
+=======
+    "express": "^4.19.2"
+>>>>>>> parent of 17425b9 (added db operations)
   },
   "devDependencies": {
     "eslint": "^8.57.0",
