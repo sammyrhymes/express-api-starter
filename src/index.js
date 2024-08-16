@@ -4,9 +4,28 @@ const app = express();
 
 app.use(express.json()); // Middleware to parse JSON
 
+<<<<<<< HEAD:api/index.js
 // Set up PostgreSQL database
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
+=======
+app.use(express.json());  // Middleware to parse JSON
+
+// Callback URL endpoint
+app.all('/daraja-callback', (req, res) => {
+    const callbackData = req.body;  // Get the callback data
+
+    // Store the latest callback data
+    latestCallbackData = callbackData;
+
+    // Process the callback data (optional)
+    console.log('Received Callback Data:', callbackData);
+
+    // Send a response to Safaricom
+    res.status(200).json({
+        message: 'Callback received successfully'
+    });
+>>>>>>> parent of 60dfc74 (cleanup):src/index.js
 });
 
 // Create the payments table if it doesn't exist
